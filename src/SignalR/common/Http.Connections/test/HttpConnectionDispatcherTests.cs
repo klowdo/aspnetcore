@@ -620,6 +620,68 @@ public class HttpConnectionDispatcherTests : VerifiableLoggedTest
     [Theory]
     [InlineData(HttpTransportType.LongPolling)]
     [InlineData(HttpTransportType.ServerSentEvents)]
+    public async Task PostSendsToConnectionWithOnMessageCallback(HttpTransportType transportType)
+    {
+        using (StartVerifiableLog())
+        {
+            var manager = CreateConnectionManager(LoggerFactory);
+            var dispatcher = CreateDispatcher(manager, LoggerFactory);
+            var connection = manager.CreateConnection();
+            connection.TransportType = transportType;
+
+            using (var requestBody = new MemoryStream())
+            using (var responseBody = new MemoryStream())
+            {
+                var bytes = Encoding.UTF8.GetBytes("Hello World");
+                requestBody.Write(bytes, 0, bytes.Length);
+                requestBody.Seek(0, SeekOrigin.Begin);
+
+                var context = new DefaultHttpContext();
+                context.Request.Body = requestBody;
+                context.Response.Body = responseBody;
+
+                var services = new ServiceCollection();
+                services.AddSingleton<TestConnectionHandler>();
+                services.AddOptions();
+                context.Request.Path = "/foo";
+                context.Request.Method = "POST";
+                var values = new Dictionary<string, StringValues>();
+                values["id"] = connection.ConnectionToken;
+                values["negotiateVersion"] = "1";
+                var qs = new QueryCollection(values);
+                context.Request.Query = qs;
+
+                var builder = new ConnectionBuilder(services.BuildServiceProvider());
+                builder.UseConnectionHandler<TestConnectionHandler>();
+                var app = builder.Build();
+
+                Assert.Equal(0, connection.ApplicationStream.Length);
+
+                  var options = new HttpConnectionDispatcherOptions
+            {
+                OnMessageReceived = writer => WriteRecordSeparator(writer, " again")
+            };
+                await dispatcher.ExecuteAsync(context, options, app);
+
+                Assert.True(connection.Transport.Input.TryRead(out var result));
+                Assert.Equal("Hello World again", Encoding.UTF8.GetString(result.Buffer.ToArray()));
+                Assert.Equal(0, connection.ApplicationStream.Length);
+                connection.Transport.Input.AdvanceTo(result.Buffer.End);
+            }
+        }
+    }
+    
+    private static void WriteRecordSeparator(IBufferWriter<byte> output, string message)
+    {
+        var bytes = Encoding.UTF8.GetBytes(message);
+        var buffer = output.GetSpan(bytes.Length);
+        bytes.CopyTo(buffer);
+        output.Advance(bytes.Length);
+    }
+
+    [Theory]
+    [InlineData(HttpTransportType.LongPolling)]
+    [InlineData(HttpTransportType.ServerSentEvents)]
     public async Task PostSendsToConnectionInParallel(HttpTransportType transportType)
     {
         using (StartVerifiableLog())

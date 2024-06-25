@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO.Pipelines;
@@ -166,6 +167,8 @@ internal sealed partial class HttpConnectionContext : ConnectionContext,
     public ClaimsPrincipal? User { get; set; }
 
     public bool HasInherentKeepAlive { get; set; }
+    
+    public Action<IBufferWriter<byte>>? OnMessageReceived => _options.OnMessageReceived;
 
     public override IDictionary<object, object?> Items
     {
@@ -515,6 +518,7 @@ internal sealed partial class HttpConnectionContext : ConnectionContext,
 
             // Reject the request with a 409 conflict
             nonClonedContext.Response.StatusCode = StatusCodes.Status409Conflict;
+            
             nonClonedContext.Response.ContentType = "text/plain";
         }
         else
@@ -746,6 +750,7 @@ internal sealed partial class HttpConnectionContext : ConnectionContext,
                 await notifyOnReconnect(writer);
             };
         }
+
     }
 
     // If the connection is using the Stateful Reconnect feature or using LongPolling

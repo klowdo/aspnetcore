@@ -159,6 +159,12 @@ internal sealed partial class WebSocketsServerTransport : IHttpTransport
                 Log.MessageReceived(_logger, receiveResult.MessageType, receiveResult.Count, receiveResult.EndOfMessage);
 
                 _application.Output.Advance(receiveResult.Count);
+                
+                if(receiveResult.EndOfMessage && _connection.OnMessageReceived != null)
+                {
+                    _connection.OnMessageReceived.Invoke(_application.Output);
+                }
+                    
 
                 var flushResult = await _application.Output.FlushAsync();
 

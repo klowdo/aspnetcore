@@ -1,1 +1,3 @@
 #nullable enable
+Microsoft.AspNetCore.Http.Connections.HttpConnectionDispatcherOptions.OnMessageReceived.get -> System.Action<System.Buffers.IBufferWriter<byte>!>?
+Microsoft.AspNetCore.Http.Connections.HttpConnectionDispatcherOptions.OnMessageReceived.set -> void

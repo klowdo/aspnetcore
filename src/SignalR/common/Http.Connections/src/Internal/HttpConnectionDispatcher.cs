@@ -486,6 +486,11 @@ internal sealed partial class HttpConnectionDispatcher
                 try
                 {
                     await context.Request.Body.CopyToAsync(connection.ApplicationStream, bufferSize);
+                    if (connection.OnMessageReceived != null)
+                    {
+                        connection.OnMessageReceived?.Invoke(connection.Application.Output);
+                        await connection.Application.Output.FlushAsync();
+                    }
                 }
                 catch (InvalidOperationException ex)
                 {
